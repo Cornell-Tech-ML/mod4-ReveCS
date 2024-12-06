@@ -113,7 +113,6 @@ def _tensor_conv1d(
                 out_pos = (i * out_strides[0] + j * out_strides[1] + k * out_strides[2])
                 out[out_pos] = acc
 
-
 tensor_conv1d = njit(_tensor_conv1d, parallel=True)
 
 
@@ -223,7 +222,7 @@ def _tensor_conv2d(
         reverse (bool): anchor weight at top-left or bottom-right
 
     """
-    batch_, out_channels, _, _ = out_shape
+    batch_, out_channels, out_height, out_width = out_shape
     batch, in_channels, height, width = input_shape
     out_channels_, in_channels_, kh, kw = weight_shape
 
@@ -239,8 +238,30 @@ def _tensor_conv2d(
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
-    return
+    for i in prange(batch_):
+        for j in range(out_channels):
+            for k in range(out_height):
+                for l in range(out_width):
+                    acc = 0.0
 
+                    for c in range(in_channels):
+                        for h in range(kh):
+                            for w in range(kw):
+                                if reverse: 
+                                    curr_h = k - kh + 1 + h
+                                    curr_w = l - kw + 1 + w
+                                else:  # Forward
+                                    curr_h = k + h
+                                    curr_w = l + w
+
+                                if 0 <= curr_h < height and 0 <= curr_w < width:
+                                    in_pos = i * s10 + c * s11 + curr_h * s12 + curr_w * s13
+                                    w_pos = j * s20 + c * s21 + h * s22 + w * s23
+                                    
+                                    acc += input[in_pos] * weight[w_pos]
+
+                    out_pos = i * out_strides[0] + j * out_strides[1] + k * out_strides[2] + l * out_strides[3]
+                    out[out_pos] = acc
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
 
