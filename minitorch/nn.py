@@ -137,3 +137,54 @@ def softmax(input: Tensor, dim: int) -> Tensor:
     exp = input.exp()
     exp_sum = exp.sum(dim)
     return exp / exp_sum
+
+def logsoftmax(input: Tensor, dim: int) -> Tensor:
+    """Applies the log softmax function to the input tensor along a specified dimension.
+
+    Args:
+        input: Input tensor to apply log softmax to
+        dim: Dimension along which to compute log softmax
+
+    Returns:
+        Tensor with log softmax applied along specified dimension
+    """
+    return softmax(input, dim).log()
+
+def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
+    """Applies 2D max pooling over input tensor.
+
+    Args:
+        input: Input tensor of shape (batch, channel, height, width)
+        kernel: Tuple of (kernel_height, kernel_width) specifying pooling window size
+
+    Returns:
+        Tensor with max pooling applied, shape (batch, channel, height/kh, width/kw)
+    """
+    batch, channel, height, width = input.shape
+    tiled, new_height, new_width = tile(input, kernel)
+
+    return max(tiled, dim=4).contiguous().view(batch, channel, new_height, new_width)
+
+def dropout(input: Tensor, p: float, ignore: bool = False) -> Tensor:
+    """Applies dropout to input tensor during training.
+
+    Randomly zeroes some elements of the input tensor with probability p using 
+    samples from a Bernoulli distribution. Each channel will be zeroed out 
+    independently on every forward call.
+
+    Args:
+        input: Input tensor
+        p: Probability of an element to be zeroed. Must be between 0 and 1
+        ignore: If True, disables dropout and just returns input tensor
+
+    Returns:
+        Tensor with dropout applied
+    """
+    if ignore or p == 0.0:
+        return input
+    
+    if p == 1.0:
+        return input.zeros()
+
+    mask = rand(input.shape) > p
+    return input * mask

@@ -31,8 +31,23 @@ def test_avg(t: Tensor) -> None:
 @pytest.mark.task4_4
 @given(tensors(shape=(2, 3, 4)))
 def test_max(t: Tensor) -> None:
-    # TODO: Implement for Task 4.4.
-    raise NotImplementedError("Need to implement for Task 4.4")
+    for dim in range(3):
+        # Forward pass test
+        out = minitorch.max(t, dim)
+        
+        # Check shape is correct (dimension dim should be eliminated)
+        assert out.shape == tuple(s for i, s in enumerate(t.shape) if i != dim)
+        
+        # Check max values are correct for first position
+        if dim == 0:
+            assert_close(out[0, 0], max([t[i, 0, 0] for i in range(2)]))
+        elif dim == 1:
+            assert_close(out[0, 0], max([t[0, i, 0] for i in range(3)]))
+        elif dim == 2:
+            assert_close(out[0, 0], max([t[0, 0, i] for i in range(4)]))
+            
+        # Gradient check
+        minitorch.grad_check(lambda t: minitorch.max(t, dim), t)
 
 
 @pytest.mark.task4_4
