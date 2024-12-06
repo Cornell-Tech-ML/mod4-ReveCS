@@ -250,7 +250,7 @@ def _tensor_conv2d(
                                 if reverse: 
                                     curr_h = k - kh + 1 + h
                                     curr_w = l - kw + 1 + w
-                                else:  # Forward
+                                else:
                                     curr_h = k + h
                                     curr_w = l + w
 
