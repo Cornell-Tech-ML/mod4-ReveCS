@@ -112,3 +112,28 @@ class Max(Function):
         input, dim = ctx.saved_values
         return grad_output * argmax(input, dim), 0.0
 
+def max(input: Tensor, dim: int) -> Tensor:
+    """Returns the maximum values along a specified dimension.
+
+    Args:
+        input: Input tensor to find max values over
+        dim: Dimension along which to find max values
+
+    Returns:
+        Tensor containing max values along specified dimension
+    """
+    return Max.apply(input, input._ensure_tensor(dim))
+
+def softmax(input: Tensor, dim: int) -> Tensor:
+    """Applies the softmax function to the input tensor along a specified dimension.
+
+    Args:
+        input: Input tensor to apply softmax to
+        dim: Dimension along which to compute softmax
+
+    Returns:
+        Tensor with softmax applied along specified dimension
+    """
+    exp = input.exp()
+    exp_sum = exp.sum(dim)
+    return exp / exp_sum
