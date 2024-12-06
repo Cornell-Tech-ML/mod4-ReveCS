@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Optional
 
 from . import operators
 from .autodiff import Context
@@ -22,12 +22,10 @@ def tile(input: Tensor, kernel: Tuple[int, int]) -> Tuple[Tensor, int, int]:
     """Reshape an image tensor for 2D pooling
 
     Args:
-    ----
         input: batch x channel x height x width
         kernel: height x width of pooling
 
     Returns:
-    -------
         Tensor of size batch x channel x new_height x new_width x (kernel_height * kernel_width) as well as the new_height and new_width value.
 
     """
@@ -54,5 +52,63 @@ def tile(input: Tensor, kernel: Tuple[int, int]) -> Tuple[Tensor, int, int]:
     return output, new_height, new_width
 
 def avgpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
+    """Applies 2D average pooling over an input signal composed of several input planes.
+
+    Args:
+        input: Input tensor of shape (batch x channel x height x width)
+        kernel: Tuple of (kernel_height, kernel_width) specifying size of pooling region
+
+    Returns:
+        Tensor of shape (batch x channel x new_height x new_width) where new_height and
+        new_width are determined by the kernel size
+    """
     output, new_height, new_width = tile(input, kernel)
     return output.mean(4).contiguous().view(output.shape[0], output.shape[1], new_height, new_width)
+
+fastmax = FastOps.reduce(operators.max, -float("inf"))
+
+def argmax(input: Tensor, dim: int) -> Tensor:
+    """Returns a tensor with 1s in positions where the input tensor has its maximum value along the specified dimension.
+
+    Args:
+        input: Input tensor
+        dim: Dimension along which to find argmax
+
+    Returns:
+        A tensor of the same shape as input with 1s at the positions of maximal values along dim
+    """
+    max = fastmax(input, dim)
+    return max == input
+
+class Max(Function):
+    @staticmethod
+    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
+        """Forward pass for max operation.
+
+        Args:
+            ctx: Context for saving values needed in backward pass
+            a: Input tensor to find max values over
+            dim: Dimension along which to find max values
+
+        Returns:
+            Tensor containing max values along specified dimension
+        """
+        ctx.save_for_backward(a, int(dim.item()))
+        return fastmax(a, int(dim.item()))
+
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+        """Backward pass for max operation.
+
+        Args:
+            ctx: Context containing saved tensors from forward pass
+            grad_output: Gradient of the loss with respect to the output
+
+        Returns:
+            Tuple of:
+                - Gradient of the loss with respect to the input tensor
+                - Gradient of the loss with respect to the dimension (always 0.0)
+        """
+        input, dim = ctx.saved_values
+        return grad_output * argmax(input, dim), 0.0
+
