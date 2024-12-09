@@ -1,14 +1,11 @@
 from typing import Tuple, TypeVar, Any
 
-import numpy as np
 from numba import prange
 from numba import njit as _njit
 
 from .autodiff import Context
 from .tensor import Tensor
 from .tensor_data import (
-    MAX_DIMS,
-    Index,
     Shape,
     Strides,
     Storage,
@@ -22,6 +19,18 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Decorator for JIT compilation with Numba.
+
+    Args:
+    ----
+        fn (Fn): Function to compile
+        **kwargs (Any): Additional keyword arguments passed to Numba's njit
+
+    Returns:
+    -------
+        Fn: Compiled function with Numba optimizations
+
+    """
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -90,8 +99,28 @@ def _tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    # TODO: Implement for Task 4.1.
-    raise NotImplementedError("Need to implement for Task 4.1")
+    for i in prange(batch_):
+        for j in prange(out_channels):
+            for k in prange(out_width):
+                acc = 0.0
+
+                for c in range(in_channels):
+                    for w in range(kw):
+                        if reverse:
+                            curr_w = kw - w - 1
+                            curr_pos = k - w
+                        else:
+                            curr_w = w
+                            curr_pos = k + w
+
+                        if 0 <= curr_pos < width:
+                            in_pos = i * s1[0] + c * s1[1] + curr_pos * s1[2]
+                            w_pos = j * s2[0] + c * s2[1] + curr_w * s2[2]
+
+                            acc += input[in_pos] * weight[w_pos]
+
+                out_pos = i * out_strides[0] + j * out_strides[1] + k * out_strides[2]
+                out[out_pos] = acc
 
 
 tensor_conv1d = njit(_tensor_conv1d, parallel=True)
@@ -127,6 +156,20 @@ class Conv1dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Compute the gradient of a 1D Convolution.
+
+        Args:
+        ----
+            ctx: Context containing saved tensors from forward pass
+            grad_output: Gradient with respect to output of convolution
+
+        Returns:
+        -------
+            Tuple containing:
+                - grad_input: Gradient with respect to the input tensor
+                - grad_weight: Gradient with respect to the weight tensor
+
+        """
         input, weight = ctx.saved_values
         batch, in_channels, w = input.shape
         out_channels, in_channels, kw = weight.shape
@@ -203,7 +246,7 @@ def _tensor_conv2d(
         reverse (bool): anchor weight at top-left or bottom-right
 
     """
-    batch_, out_channels, _, _ = out_shape
+    batch_, out_channels, out_height, out_width = out_shape
     batch, in_channels, height, width = input_shape
     out_channels_, in_channels_, kh, kw = weight_shape
 
@@ -219,8 +262,37 @@ def _tensor_conv2d(
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError("Need to implement for Task 4.2")
+    for i in prange(batch_):
+        for j in range(out_channels):
+            for k in range(out_height):
+                for l in range(out_width):
+                    acc = 0.0
+
+                    for c in range(in_channels):
+                        for h in range(kh):
+                            for w in range(kw):
+                                if reverse:
+                                    curr_h = k - kh + 1 + h
+                                    curr_w = l - kw + 1 + w
+                                else:
+                                    curr_h = k + h
+                                    curr_w = l + w
+
+                                if 0 <= curr_h < height and 0 <= curr_w < width:
+                                    in_pos = (
+                                        i * s10 + c * s11 + curr_h * s12 + curr_w * s13
+                                    )
+                                    w_pos = j * s20 + c * s21 + h * s22 + w * s23
+
+                                    acc += input[in_pos] * weight[w_pos]
+
+                    out_pos = (
+                        i * out_strides[0]
+                        + j * out_strides[1]
+                        + k * out_strides[2]
+                        + l * out_strides[3]
+                    )
+                    out[out_pos] = acc
 
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
@@ -254,6 +326,23 @@ class Conv2dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Compute the backward pass of a 2D convolution.
+
+        Args:
+        ----
+            ctx (Context): The context from the forward pass.
+            grad_output (Tensor): Gradient of the loss with respect to conv output.
+                Shape: batch x out_channel x h x w
+
+        Returns:
+        -------
+            Tuple[Tensor, Tensor]: Tuple containing:
+                - grad_input (Tensor): Gradient with respect to the input.
+                    Shape: batch x in_channel x h x w
+                - grad_weight (Tensor): Gradient with respect to the weight.
+                    Shape: out_channel x in_channel x kh x kw
+
+        """
         input, weight = ctx.saved_values
         batch, in_channels, h, w = input.shape
         out_channels, in_channels, kh, kw = weight.shape

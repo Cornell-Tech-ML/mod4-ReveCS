@@ -7,13 +7,30 @@ import random
 
 import minitorch
 
+from typing import Any, Iterable
+
 
 class Network(minitorch.Module):
     def __init__(self, hidden_layers):
         super().__init__()
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.5.
+        self.layer1 = Linear(2, hidden_layers)
+        self.layer2 = Linear(hidden_layers, 1)
+        self.layer3 = Linear(hidden_layers, 1)
 
-    def forward(self, x):
+    def forward(self, x: Iterable[float]) -> float:
+        """
+        Forward pass for the network.
+
+        Args:
+        ----
+            x (List[float]): Input vector of length 2 representing the input features.
+
+        Returns:
+        -------
+            float: The output of the network, passed through a sigmoid activation function,
+                   representing a probability value between 0 and 1.
+        """
         middle = [h.relu() for h in self.layer1.forward(x)]
         end = [h.relu() for h in self.layer2.forward(middle)]
         return self.layer3.forward(end)[0].sigmoid()
@@ -40,7 +57,14 @@ class Linear(minitorch.Module):
             )
 
     def forward(self, inputs):
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.5.
+        output = []
+        for j in range(len(self.bias)):
+            sum = self.bias[j].value
+            for i in range(len(inputs)):
+                sum += inputs[i] * self.weights[i][j].value
+            output.append(sum)
+        return output
 
 
 def default_log_fn(epoch, total_loss, correct, losses):
@@ -100,7 +124,7 @@ class ScalarTrain:
 
 if __name__ == "__main__":
     PTS = 50
-    HIDDEN = 2
+    DATASET = minitorch.datasets["Xor"](PTS)
+
+    HIDDEN = 10
     RATE = 0.5
-    data = minitorch.datasets["Simple"](PTS)
-    ScalarTrain(HIDDEN).train(data, RATE)
