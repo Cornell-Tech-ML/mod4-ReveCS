@@ -5,6 +5,10 @@ import embeddings
 import minitorch
 from datasets import load_dataset
 
+import os.path
+# Set HOME environment variable for Windows
+os.environ['HOME'] = os.path.expanduser('~')
+
 BACKEND = minitorch.TensorBackend(minitorch.FastOps)
 
 
@@ -60,14 +64,14 @@ class CNNSentimentKim(minitorch.Module):
     ):
         super().__init__()
         self.feature_map_size = feature_map_size
-        self.conv1 = Conv1d(embedding_size, 
-                            feature_map_size, 
+        self.conv1 = Conv1d(embedding_size,
+                            feature_map_size,
                             filter_sizes[0])
-        self.conv2 = Conv1d(embedding_size, 
-                            feature_map_size, 
+        self.conv2 = Conv1d(embedding_size,
+                            feature_map_size,
                             filter_sizes[1])
-        self.conv3 = Conv1d(embedding_size, 
-                            feature_map_size, 
+        self.conv3 = Conv1d(embedding_size,
+                            feature_map_size,
                             filter_sizes[2])
         self.linear = Linear(feature_map_size, 1)
         self.dropout = dropout
@@ -87,7 +91,7 @@ class CNNSentimentKim(minitorch.Module):
         x = self.linear.forward(x.view(x.shape[0], self.feature_map_size))
         x = minitorch.dropout(x, self.dropout)
 
-        return x.sigmoid().view(x.shape[0]) 
+        return x.sigmoid().view(x.shape[0])
 
 
 # Evaluation helper methods
